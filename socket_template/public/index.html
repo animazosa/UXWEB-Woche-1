@@ -5,13 +5,88 @@
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <title>Basic Socket template</title>
     <style>
+                canvas {
+            height: 100%;
+            width: 100%;
+            display: block;
+            background-color: rgb(224, 25, 181);
+        }
     </style>
 </head>
 
 <body>
+    <canvas id="canvas"> </canvas>
 </body>
 <script src="/socket.io/socket.io.js"></script>
 <script>
+
+
+let canvas = document.getElementById('canvas');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+
+    canvas.addEventListener('pointerdown', startDraw);
+    canvas.addEventListener('pointerup', endDraw);
+    canvas.addEventListener('pointermove', draw);
+
+
+
+    let painting = false;
+    let ctx = canvas.getContext ('2d');
+
+    // drawing styles
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    last_mouse = {
+        x: 0,
+        y: 0
+    };
+
+    function startDraw (e) {
+        painting = true;
+        console.log("start drawing");
+        console.log(e);
+
+        last_mouse.x = e.clientX;
+        last_mouse.y = e.clientY;
+    }
+
+    function endDraw (e) {
+        painting = false;
+        console.log("end drawing");
+    }
+
+    function draw (e) {
+        if (painting) {
+            console.log("drawing");
+
+            socket.emit("draw", {
+                from: { x: last_mouse.x, y: last_mouse.y },
+                to: { x: e.clientX, y: e.clientY }
+
+            });
+
+            draw_path(last_mouse, { x: e.clientX, y: e.clientY}, "white");
+            last_mouse.x = e.clientX;
+            last_mouse.y = e.clientY;
+
+
+        }
+   
+    }
+
+    function draw_path(from, to, colour) {
+        ctx.strokeStyle = colour;
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(to.x, to.y);
+        ctx.closePath();
+        ctx.stroke();
+        console.log("draw path");
+    }
+
+
  
     const socket = io();
     // received a message from the server
@@ -21,11 +96,20 @@
 
     // received a message from another client
     socket.on("client_msg", msg => {
-        console.log(msg);
+       console.log(msg);
     });
 
+    // connection established to the server
     socket.on("connect", () => {
+        // send a message to the server to the other clients
         socket.emit("client_msg", "Hello from the client " + socket.id);
+    });
+
+    // receive draw event
+    socket.on("draw", msg => {
+        console.log("receive draw event");
+        console.log(msg);
+        draw_path(msg.from, msg.to, "black");
     });
 
 </script>
